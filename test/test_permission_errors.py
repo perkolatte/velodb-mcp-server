@@ -66,6 +66,20 @@ class AccessDeniedDetectionTests(unittest.TestCase):
         self.assertFalse(is_access_denied_error(_UNREACHABLE))
         self.assertFalse(is_access_denied_error(RuntimeError("boom")))
 
+    def test_doris_column_privilege_message_under_generic_code_is_access_denied(self) -> None:
+        exc = pymysql.err.OperationalError(
+            1105,
+            "errCode = 2, detailMessage = Permission denied: user [alice] does not have "
+            "privilege for [SELECT] command on [internal].[dw].[orders].[amount]",
+        )
+        self.assertTrue(is_access_denied_error(exc))
+
+    def test_storage_permission_error_is_not_access_denied(self) -> None:
+        exc = pymysql.err.OperationalError(
+            1105, "errCode = 2, detailMessage = open file /data/seg_0.dat failed: Permission denied"
+        )
+        self.assertFalse(is_access_denied_error(exc))
+
     def test_wrapped_failed_login_without_code_is_not_access_denied(self) -> None:
         wrapped = RuntimeError("Access denied for user 'alice'@'10.0.0.5' (using password: YES)")
         self.assertFalse(is_access_denied_error(wrapped))

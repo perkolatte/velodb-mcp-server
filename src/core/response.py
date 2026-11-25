@@ -77,11 +77,20 @@ def is_access_denied_error(exc: BaseException) -> bool:
         return False
     if code in _ACCESS_DENIED_CODES:
         return True
-    # Doris also reports some privilege failures under generic codes (e.g. 1105).
-    # A failed login says "using password" and is not a privilege problem, even
-    # when it arrives wrapped without its 1045 code.
+    # Doris also reports some privilege failures under generic codes (e.g. 1105):
+    # "Access denied ..." or, from column/Ranger authorization,
+    # "Permission denied: user [...] does not have privilege ...". A plain
+    # "Permission denied" can be a storage or filesystem error, so it does not
+    # count. A failed login says "using password" and is not a privilege
+    # problem, even when it arrives wrapped without its 1045 code.
     message = str(exc).lower()
-    return "access denied" in message and "using password" not in message
+    if "using password" in message:
+        return False
+    return (
+        "access denied" in message
+        or "does not have privilege" in message
+        or "permission denied: user" in message
+    )
 
 
 def db_error_response(exc: BaseException, permission_hint: str) -> str:
